@@ -1,12 +1,15 @@
+# Installation
 
 ```npm install status-embark-plugin --save```
 
-add config in embark.json:
+# Configuring
+
+Add this config in `embark.json`:
 
 ```Json
   "plugins": {
     "embark-statusim": {
-      "deviceIp": "your-mobile-ip",
+      "deviceIp": "your-device-ip",
       "whisperIdentity": "dapp-test",
       "name": "MyDapp"
     }

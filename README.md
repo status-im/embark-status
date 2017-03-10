@@ -1,6 +1,6 @@
 # Installation
 
-```npm install status-embark-plugin --save```
+```npm install embark-status --save```
 
 # Configuring
 
@@ -8,7 +8,7 @@ Add this config in `embark.json`:
 
 ```Json
   "plugins": {
-    "status-embark-plugin": {
+    "embark-status": {
       "deviceIp": "your-device-ip",
       "whisperIdentity": "dapp-test",
       "name": "MyDapp"

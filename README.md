@@ -8,7 +8,7 @@ Add this config in `embark.json`:
 
 ```Json
   "plugins": {
-    "embark-statusim": {
+    "status-embark-plugin": {
       "deviceIp": "your-device-ip",
       "whisperIdentity": "dapp-test",
       "name": "MyDapp"

@@ -10,7 +10,7 @@ module.exports = function(embark) {
   };
 
   var statusAddDApp = function(dapp) {
-    child.exec("./node_modules/.bin/status-dev-cli add-dapp " + JSON.stringify(dapp) + " --ip " + embark.pluginConfig.deviceIp);
+    child.exec("./node_modules/.bin/status-dev-cli add " + JSON.stringify(dapp) + " --ip " + embark.pluginConfig.deviceIp);
   };
 
   var statusSwitchNode = function(node) {
@@ -18,7 +18,7 @@ module.exports = function(embark) {
   };
 
   var statusDAppChanged = function(dapp) {
-    child.exec("./node_modules/.bin/status-dev-cli refresh-dapp " + JSON.stringify(dapp) + " --ip " + embark.pluginConfig.deviceIp);
+    child.exec("./node_modules/.bin/status-dev-cli refresh " + JSON.stringify(dapp) + " --ip " + embark.pluginConfig.deviceIp);
   };
 
   embark.events.on("firstDeploymentDone", function() {

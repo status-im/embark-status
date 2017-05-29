@@ -1,6 +1,6 @@
 {
   "name": "embark-status",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,6 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "request": "^2.79.0",
-    "status-dev-cli": "^2.2.1"
+    "status-dev-cli": "^3.2.2"
   }
 }

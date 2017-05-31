@@ -17,8 +17,8 @@ module.exports = function(embark) {
     child.exec("./node_modules/.bin/status-dev-cli switch-node " + node + " --ip " + embark.pluginConfig.deviceIp);
   };
 
-  var statusDAppChanged = function(dapp) {
-    child.exec("./node_modules/.bin/status-dev-cli refresh " + JSON.stringify(dapp) + " --ip " + embark.pluginConfig.deviceIp);
+  var statusDAppChanged = function(whisperIdentity) {
+    child.exec("./node_modules/.bin/status-dev-cli refresh " + whisperIdentity + " --ip " + embark.pluginConfig.deviceIp);
   };
 
   embark.events.on("firstDeploymentDone", function() {
@@ -31,6 +31,7 @@ module.exports = function(embark) {
 
   // when the dapp is regenerated
   embark.events.on("outputDone", function() {
-    statusDAppChanged(getDAppData());
+    var identity = embark.pluginConfig.whisperIdentity || "dapp-test";
+    statusDAppChanged(identity);
   });
 };

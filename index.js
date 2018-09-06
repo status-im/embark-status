@@ -1,37 +1,31 @@
-var child = require('child_process');
+var StatusDev = require('./status.js');
+
+var isConnected = false;
 
 module.exports = function(embark) {
-  var getDAppData = function() {
-    return {
-      "whisper-identity": (embark.pluginConfig.whisperIdentity || "dapp-test"),
-      "dapp-url": "http://" + embark.config.webServerConfig.host + ":" + embark.config.webServerConfig.port + "/",
-      "name": (embark.pluginConfig.name || "My DApp")
-    };
-  };
+  let deviceIp = embark.pluginConfig.deviceIp;
+  let statusDev = new StatusDev({ip: deviceIp});
 
-  var statusAddDApp = function(dapp) {
-    child.exec("./node_modules/.bin/status-dev-cli add " + JSON.stringify(dapp) + " --ip " + embark.pluginConfig.deviceIp);
-  };
-
-  var statusSwitchNode = function(node) {
-    child.exec("./node_modules/.bin/status-dev-cli switch-node " + node + " --ip " + embark.pluginConfig.deviceIp);
-  };
-
-  var statusDAppChanged = function(whisperIdentity) {
-    child.exec("./node_modules/.bin/status-dev-cli refresh " + whisperIdentity + " --ip " + embark.pluginConfig.deviceIp);
-  };
-
-  embark.events.on("firstDeploymentDone", function() {
-    statusSwitchNode("http://" + embark.config.blockchainConfig.rpcHost + ":" + embark.config.blockchainConfig.rpcPort);
-
-    embark.logger.info("Adding DApp to Status");
-    statusAddDApp(getDAppData());
+  embark.registerServiceCheck('Status', function (cb) {
+    statusDev.ping((err, state) => {
+      cb({name: `Status.im (${deviceIp})`, status: !!state});
+    });
   });
 
+  let dappUrl = `http://${embark.config.webServerConfig.host}:${embark.config.webServerConfig.port}/`;
+  let nodeUrl = `http://localhost:8545/`;
+  let chainName = 'embark';
+  let networkId = 1337;
 
-  // when the dapp is regenerated
-  embark.events.on("outputDone", function() {
-    var identity = embark.pluginConfig.whisperIdentity || "dapp-test";
-    statusDAppChanged(identity);
-  });
+	statusDev.addNetwork('embark', nodeUrl, chainName, networkId, (err, result) => {
+    let statusNetworkId = result['network-id']
+		statusDev.connect(statusNetworkId, (err, result) => {
+			isConnected = true;
+		  statusDev.addDapp(dappUrl, (err, result) => {
+		  });
+		});
+	});
+
+  //embark.events.on("outputDone", function() {
+  //});
 };

@@ -9,7 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "request": "^2.79.0",
-    "status-dev-cli": "^3.2.5"
+    "request": "^2.79.0"
   }
 }

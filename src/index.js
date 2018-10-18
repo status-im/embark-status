@@ -1,6 +1,6 @@
 const StatusDev = require('./status.js');
 const Utils = require('./utils');
-const MyIp = require('quick-local-ip');
+const Ip = require('ip');
 const fs = require('fs');
 const path = require('path');
 
@@ -44,13 +44,12 @@ var EmbarkStatus = function (embark) {
         //this.openDapp();
       });
     });
-    ;
   }
 
   this.openDapp = function (cb) {
     let dappHost = this.webServerConfig.host;
     if (dappHost === '0.0.0.0' || dappHost === 'localhost') {
-      dappHost = MyIp.getLocalIP4();
+      dappHost = Ip.address();
     }
 
     const dappUrl = Utils.buildUrl('http', dappHost, this.webServerConfig.port) + '/';

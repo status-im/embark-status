@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "quick-local-ip": "^1.0.7",
     "request": "^2.79.0"
   }
 }

@@ -5,29 +5,33 @@ var StatusDev = function(options) {
 }
 
 StatusDev.prototype.request = function(endpoint, body, method, cb) {
-  console.dir("===> " + this.url + endpoint)
-  console.dir(body)
+//   console.dir("===> " + this.url + endpoint)
+//   console.dir(body)
 	request({
 		url: this.url + endpoint,
 		method: method,
 		timeout: 3000,
 		json: true,
 		body: body
-	}, (error, response, body) => {
-		cb(error, body);
-	})
+	}, (error, response, respBody) => {
+		console.dir(`REQUEST: ${endpoint} ${JSON.stringify(body)}\nRESPONSE: ${JSON.stringify(respBody)}\nERROR: ${error}`);
+		cb(error, respBody);
+	});
 }
 
 // ping
 // POST localhost:5561/ping
 // response: {"message": "Pong!"}
 StatusDev.prototype.ping = function(cb) {
-	this.request('/ping', {}, "POST", cb);
+	this.request('/ping', {}, "POST", (err, response) => {
+		if(!err && response) return response.message === 'Pong!';
+		return false;
+	});
 }
 
 // POST localhost:5561/dapp/open url=<dapp_url>
 // response: { "message": "URL has been opened." }
-StatusDev.prototype.addDapp = function(url, cb) {
+StatusDev.prototype.openDapp = function(url, cb) {
 	this.request('/dapp/open', {url: url}, "POST", cb);
 }
 

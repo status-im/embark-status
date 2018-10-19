@@ -3,6 +3,7 @@ import {buildUrl} from './utils';
 const Ip = require('ip');
 const fs = require('fs');
 const path = require('path');
+const hash = require('object-hash');
 
 // Duration (in ms) to wait before attempting to reconnect.
 const CONNECT_INTERVAL = 4000;
@@ -16,6 +17,10 @@ const _addAndConnectStatusNetwork = Symbol('addAndConnectStatusNetwork');
 const _getStatusNetworkId = Symbol('getStatusNetworkId');
 const _setStatusNetworkId = Symbol('setStatusNetworkId');
 const _registerEvents = Symbol('registerEvents');
+const _computeHash = Symbol('computeHash');
+
+// private backing variables
+let _hashedSettings;
 
 /**
  * Plugin that connects an Embark dApp to the Status app, and allows the dApp
@@ -39,11 +44,13 @@ class EmbarkStatusPlugin {
     // gets hydrated webserver config from embark
     this.events.on('config:load:webserver', webServerConfig => {
       this.webServerConfig = webServerConfig;
+      _hashedSettings = null; // reset backing var to recompute hash
     });
 
     // gets hydrated blockchain config from embark
     this.events.on('config:load:blockchain', blockchainConfig => {
       this.blockchainConfig = blockchainConfig;
+      _hashedSettings = null; // reset backing var to recompute hash
     });
 
     // adds cors to blockchain and storage clients
@@ -100,7 +107,6 @@ class EmbarkStatusPlugin {
     if (dappHost === '0.0.0.0' || dappHost === 'localhost') {
       dappHost = Ip.address();
     }
-
     const dappUrl = this.pluginConfig.dappUrl || buildUrl('http', dappHost, this.webServerConfig.port) + '/';
 
     this.logger.info(`Opening ${this.pluginConfig.name} (${dappUrl}) in the Status browser...`);
@@ -135,7 +141,8 @@ class EmbarkStatusPlugin {
   [_connectStatus](cb) {
     // if we have previously added a network, try to retrieve the stored networkid
     // and connect to that network
-    this[_getStatusNetworkId]((_err, existingNetworkId) => {
+    const {hash} = this[_computeHash]();
+    this[_getStatusNetworkId](hash, (_err, existingNetworkId) => {
       // ignore err and continue - most likely due to file not existing
       if (existingNetworkId) {
         return this[_connectToStatusNetwork](existingNetworkId.toString(), cb);
@@ -192,17 +199,15 @@ class EmbarkStatusPlugin {
    */
   [_addAndConnectStatusNetwork](cb) {
     // defined here because the configs have not been hydrated from the dapp when the plugin is instantiated
-    const nodePort = this.blockchainConfig.proxy ? this.blockchainConfig.rpcPort + 10 : this.blockchainConfig.rpcPort;
-    const nodeUrl = buildUrl('http', this.blockchainConfig.rpcHost, nodePort);
-    const networkName = `${NETWORK_NAME} (${this.pluginConfig.name})`;
+    const {hash, nodeUrl, networkName, chainName, networkId} = this[_computeHash]();
 
     this.logger.info(`Adding network '${networkName}' to Status...`);
-    return this.statusApi.addNetwork(networkName, nodeUrl, CHAIN_NAME, this.networkId, (err, result) => {
+    return this.statusApi.addNetwork(networkName, nodeUrl, chainName, this.networkId, (err, result) => {
       if (err) {
         if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
           return cb('Failed to add a network to the Status app. Is the Status app open?');
         }
-        return cb(`Error while adding network ${nodeUrl} (name: ${CHAIN_NAME}, networkId: ${this.networkId}) to the Status App: ${err.message}.`);
+        return cb(`Error while adding network ${nodeUrl} (name: ${chainName}, networkId: ${networkId}) to the Status App: ${err.message}.`);
       }
       if (!err && !result) {
         return cb(`Empty response from the Status app. Is it possible your phone is in standby or the Status app is in the background?`);
@@ -212,9 +217,34 @@ class EmbarkStatusPlugin {
         return cb(`Status app returned a bad response (no 'network-id' present), could not connect.`);
       }
       this.logger.info(`Network '${networkName}' added successfully.`);
-      this[_setStatusNetworkId](statusNetworkId);
+      this[_setStatusNetworkId](hash, statusNetworkId);
       this[_connectToStatusNetwork](statusNetworkId, cb);
     });
+  }
+
+  /**
+   * Computes a hash of all settings that are needed to create a new network 
+   * in the Status app. This hash can then be used to uniquely identify the
+   * Status network ID.
+   * 
+   * @returns {void}
+   */
+  [_computeHash]() {
+    if (!_hashedSettings) {
+
+      const nodePort = this.blockchainConfig.proxy ? this.blockchainConfig.rpcPort + 10 : this.blockchainConfig.rpcPort;
+      let blockchainHost = this.blockchainConfig.rpcHost;
+      if (blockchainHost === '0.0.0.0' || blockchainHost === 'localhost') {
+        blockchainHost = Ip.address();
+      }
+      const nodeUrl = buildUrl('http', blockchainHost, nodePort);
+      const networkName = `${NETWORK_NAME} (${this.pluginConfig.name})`;
+
+      const settings = Object.assign(this.pluginConfig, {networkName, nodeUrl, chainName: CHAIN_NAME, networkId: this.networkId});
+      const settingsHash = hash(settings);
+      _hashedSettings = Object.assign(settings, {hash: settingsHash});
+    }
+    return _hashedSettings; //networkName, nodeUrl, chainName, this.networkId
   }
 
   /**
@@ -222,6 +252,7 @@ class EmbarkStatusPlugin {
    * ID is stored in the dApp's temporary storage in the filesystem.
    * @private
    * 
+   * @param {String} hash Hash of all settings that created the Status network ID
    * @param {*} cb Callback called after an attempt to read the network ID from
    * the filesystem, called with parameters:
    *  - {Error} err Error that occurred reading the file from the filesystem.
@@ -229,8 +260,8 @@ class EmbarkStatusPlugin {
    * 
    * @returns {void}
    */
-  [_getStatusNetworkId](cb) {
-    fs.readFile(this.networkIdPath, cb);
+  [_getStatusNetworkId](hash, cb) {
+    fs.readFile(path.join(this.networkIdPath, '_', hash), cb);
   }
 
   /**
@@ -238,13 +269,14 @@ class EmbarkStatusPlugin {
    * dApp in the filesystem.
    * @private
    * 
+   * @param {String} hash Hash of all settings that created the Status network ID
    * @param {String} networkId ID of the Status network
    * 
    * @returns {void}
    */
-  [_setStatusNetworkId](networkId) {
+  [_setStatusNetworkId](hash, networkId) {
     fs.mkdir(this.networkIdDirectory, _err => {
-      fs.writeFile(this.networkIdPath, networkId, err => {
+      fs.writeFile(path.join(this.networkIdPath, '_', hash), networkId, err => {
         if (err) {
           this.logger.error(`Error storing networkId in embark: ${err.message}`);
         }

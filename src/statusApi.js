@@ -1,3 +1,4 @@
+import { buildUrl } from './utils';
 const request = require('request');
 
 // private method symbols
@@ -7,10 +8,10 @@ const _request = Symbol('request');
  * Commands that can be run on the Status app.
  */
 class StatusApi {
-  constructor({ip, logger, timeout}) {
-    this.url = `http://${ip}:5561`;
-    this.timeout = timeout;
+  constructor({ protocol, deviceIp, port, logger, timeout }) {
+    this.url = buildUrl(protocol, deviceIp, port);
     this.logger = logger;
+    this.timeout = timeout;
   }
 
   /**
@@ -51,8 +52,8 @@ class StatusApi {
    */
   ping(cb) {
     this[_request]('/ping', {}, "POST", (err, response) => {
-      if(err) return cb(err);
-      if(!response) return cb('No ping response');
+      if (err) return cb(err);
+      if (!response) return cb('No ping response');
       cb(err, response.message === 'Pong!');
     });
   }
@@ -70,7 +71,7 @@ class StatusApi {
    * @returns {void}
    */
   openDapp(url, cb) {
-    this[_request]('/dapp/open', {url: url}, "POST", cb);
+    this[_request]('/dapp/open', { url: url }, "POST", cb);
   }
 
   /**
@@ -90,7 +91,7 @@ class StatusApi {
    * @returns {void}
    */
   addNetwork(name, nodeUrl, chainName, networkId, cb) {
-    this[_request]('/network', {name: name, url: nodeUrl, chain: chainName, "network-id": networkId}, "POST", cb);
+    this[_request]('/network', { name: name, url: nodeUrl, chain: chainName, "network-id": networkId }, "POST", cb);
   }
 
   /**
@@ -107,7 +108,7 @@ class StatusApi {
    * @returns {void}
    */
   connect(id, cb) {
-    this[_request]('/network/connect', {id: id}, "POST", cb);
+    this[_request]('/network/connect', { id: id }, "POST", cb);
   }
 
   /**
@@ -124,7 +125,7 @@ class StatusApi {
    * @returns {void}
    */
   removeNetwork(id, cb) {
-    this[_request]('/network', {id: id}, "DELETE", cb);
+    this[_request]('/network', { id: id }, "DELETE", cb);
   }
 }
 

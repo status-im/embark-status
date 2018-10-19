@@ -8,10 +8,11 @@
  * @param {string} port
  *  The URL port, default to empty string.
  * @param {string} [type]
- *  Type of connection
+ *  Type of connection - used when protocol is false or not specified. Valid options
+ *  are 'ws' and 'http'.
  * @returns {string} the constructued URL, with defaults
  */
-function buildUrl(protocol, host, port, type) {
+export function buildUrl(protocol, host, port, type) {
   if (!host) throw new Error('utils.buildUrl: parameter \'host\' is required');
   if (port) port = ':' + port;
   else port = '';
@@ -20,5 +21,3 @@ function buildUrl(protocol, host, port, type) {
   }
   return `${protocol}://${host}${port}`;
 }
-
-module.exports = {buildUrl};

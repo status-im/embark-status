@@ -12,7 +12,6 @@ Add this config in the dApp's `embark.json`:
   "plugins": {
     "embark-status": {
       "deviceIp": "your-device-ip",
-      "whisperIdentity": "dapp-test",
       "name": "MyDapp"
     }
   }
@@ -20,9 +19,9 @@ Add this config in the dApp's `embark.json`:
 ### Development environment
 To configure for a development environment, the blockchain client and the webserver need to be set up to accept outside connections.
 #### Blockchain client
-Set `config/webserver.js > development > rpcHost` to `0.0.0.0`. This will open up your blockchain client (Geth or Parity) to outside connections.
+Set `config/blockchain.js > development > rpcHost` to `0.0.0.0`. This will open up your blockchain client (Geth or Parity) to outside connections.
 #### Webserver
-Set `config/blockchain.js > host` to `0.0.0.0`. This will open up your webserver to outside connections.
+Set `config/webserver.js > host` to `0.0.0.0`. This will open up your webserver to outside connections.
 > NOTE: When the Status browser opens the dApp, it will open the IP of the machine running Embark along with the port specified in the webserver config, ie `http://192.168.0.15:8000`. This is so that the device can connect to the webserver started by Embark.
 
 ### Hosted dApp
@@ -31,7 +30,6 @@ If your dApp is hosted (ie on decentralised storage like IPFS or Swarm), the plu
   "plugins": {
     "embark-status": {
       "deviceIp": "your-device-ip",
-      "whisperIdentity": "dapp-test",
       "name": "MyDapp",
       "dappUrl": "https://ipfs.io/ipfs/QmSVa32dFs5SKRmd7EXzuztMbNsZd5LGpCoU1keSrxo9BK"
     }

@@ -141,6 +141,10 @@ class EmbarkStatusPlugin {
     });
   }
 
+  static _isNotRunningError(code){
+    return NOT_RUNNING_RESPONSES.some(responseCode => responseCode === code);
+  }
+
   /**
    * Continuously attempts to connect to the Status app by instructing
    * the Status app to connect to this dApp's network (node) until a 
@@ -158,7 +162,11 @@ class EmbarkStatusPlugin {
         const connectIntervalId = setInterval(() => {
           this._connectStatus(err => {
             if (err) return this.logger.error(err);
+
+            // now that we're connected, stop trying to re-connect
             clearInterval(connectIntervalId);
+
+            // attempt to open the dApp once
             this.openDapp(err => {
               if (err) this.logger.error(err);
             });
@@ -190,7 +198,7 @@ class EmbarkStatusPlugin {
     this.logger.info(`Opening ${this.pluginConfig.name} (${dappUrl}) in the Status browser...`);
     this.statusApi.openDapp(dappUrl, (err, result) => {
       if (err) {
-        if (NOT_RUNNING_RESPONSES.some(responseCode => responseCode === err.code)) {
+        if (EmbarkStatusPlugin._isNotRunningError(err.code)) {
           return cb(`Failed to open ${this.pluginConfig.name} in the Status app. Is the Status app open?`);
         }
         return cb(`Error opening ${this.pluginConfig.name} in the Status app: ${err.message}.`);
@@ -245,7 +253,7 @@ class EmbarkStatusPlugin {
     this.logger.info(`Connecting Status app to network ${nodeUrl}...`);
     this.statusApi.connect(statusNetworkId, (err, result) => {
       if (err) {
-        if (NOT_RUNNING_RESPONSES.some(responseCode => responseCode === err.code)) {
+        if (EmbarkStatusPlugin._isNotRunningError(err.code)) {
           return cb(`Failed to connect to the Status network. Is the Status app open?`);
         }
         return cb(`Error while connecting to Status network ${nodeUrl} in the Status app: ${err.message}.`);
@@ -276,7 +284,7 @@ class EmbarkStatusPlugin {
     this.logger.info(`Adding network '${networkName}' to Status...`);
     return this.statusApi.addNetwork(networkName, nodeUrl, chainName, this.networkId, (err, result) => {
       if (err) {
-        if (NOT_RUNNING_RESPONSES.some(responseCode => responseCode === err.code)) {
+        if (EmbarkStatusPlugin._isNotRunningError(err.code)) {
           return cb('Failed to add a network to the Status app. Is the Status app open?');
         }
         return cb(`Error while adding network ${nodeUrl} (name: ${chainName}, networkId: ${networkId}) to the Status App: ${err.message}.`);

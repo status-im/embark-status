@@ -1,14 +1,55 @@
 {
   "name": "embark-status",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
+    "lint": "./node_modules/.bin/eslint src/",
+    "babel": "npm run babel:node",
+    "babel:node": "cross-env BABEL_ENV=node babel --out-dir dist src",
+    "build": "npm run clean && npm run babel",
+    "clean": "rimraf dist embark-status-*.tgz package",
+    "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/status-im/embark-status.git"
+  },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "keywords": [
+    "ethereum",
+    "dapps",
+    "swarm",
+    "blockchain",
+    "serverless"
+  ],
+  "bugs": {
+    "url": "https://github.com/status-im/embark-status/issues"
+  },
+  "homepage": "https://github.com/status-im/embark-status#readme",
   "dependencies": {
-    "request": "^2.79.0"
+    "@babel/runtime-corejs2": "7.1.2",
+    "async": "2.6.1",
+    "ip": "1.1.5",
+    "object-hash": "1.3.0",
+    "request": "2.85.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "7.1.2",
+    "@babel/core": "7.1.2",
+    "@babel/plugin-transform-runtime": "7.1.0",
+    "@babel/preset-env": "7.1.0",
+    "cross-env": "5.2.0",
+    "eslint": "4.19.1",
+    "rimraf": "2.6.2"
+  },
+  "engines": {
+    "node": ">=8.11.3"
   }
 }

@@ -1,5 +1,6 @@
 import { buildUrl } from './utils';
 const request = require('request');
+const queue = require('async/queue');
 
 /**
  * Commands that can be run on the Status app.
@@ -9,6 +10,13 @@ class StatusApi {
     this.url = buildUrl(protocol, deviceIp, port);
     this.logger = logger;
     this.timeout = timeout;
+    this.queue = queue(function (task, cb) {
+      request(task.url, task.options, (err, resp, body) => {
+        // TODO: remove this setTimeout - it is a workaround for the
+        // Status HTTP server not responding to simulataneous requests
+        setTimeout(() => { cb(err, resp, body); }, 250);
+      });
+    }, 1);
   }
 
   /**
@@ -24,12 +32,14 @@ class StatusApi {
    * @returns {void}
    */
   _request(endpoint, body, method, cb) {
-    request({
+    this.queue.push({
       url: this.url + endpoint,
-      method: method,
-      timeout: this.timeout,
-      json: true,
-      body: body
+      options: {
+        method: method,
+        timeout: this.timeout,
+        json: true,
+        body: body
+      }
     }, (error, _response, respBody) => {
       this.logger.trace(`REQUEST: ${endpoint} ${JSON.stringify(body)}\nRESPONSE: ${JSON.stringify(respBody)}\nERROR: ${error}`);
       cb(error, respBody);
@@ -48,9 +58,9 @@ class StatusApi {
    * @returns {void}
    */
   ping(cb) {
-    this._request('/ping', {}, "POST", (err, response) => {
+    this._request('/ping', {}, "POST", (err, body) => {
       if (err) return cb(err);
-      if (!response) return cb('No ping response');
+      if (!body || body === '') return cb('No ping response');
       cb(err, true);
     });
   }
@@ -123,6 +133,22 @@ class StatusApi {
    */
   removeNetwork(id, cb) {
     this._request('/network', { id: id }, "DELETE", cb);
+  }
+
+  /**
+   * Lists all networks in the Status app.
+   * Example response (success): { "message": "Network has been deleted.", "network-id": "1535660846036b3c3241022ec5046af53cdb769dcc216" }
+   * Example response (fail): { "message": "Cannot delete the provided network." }
+   * Equivalent to: GET http://<device_ip>:5561/networks
+   * 
+   * @param {Function} cb Callback called upon response, called with parameters:
+   *  - {Error} Error that occurred during request.
+   *  - {Object} JSON response from the Status app containing an Object with networks.
+   * 
+   * @returns {void}
+   */
+  networks(cb) {
+    this._request('/networks', {}, "GET", cb);
   }
 }
 

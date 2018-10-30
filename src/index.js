@@ -1,15 +1,16 @@
 import StatusApi from './statusApi.js';
 import { buildUrl } from './utils';
+import { queue } from 'async';
 const Ip = require('ip');
-const fs = require('fs');
 const path = require('path');
 const hash = require('object-hash');
 
 // Network constants
-const CONNECT_INTERVAL = 4000; // Duration (in ms) to wait before attempting to reconnect.
+const CONNECT_INTERVAL = 5000; // Duration (in ms) to wait before attempting to reconnect.
 const CHAIN_NAME = 'embark';
 const NETWORK_NAME = 'Embark';
 const DEFAULT_NETWORK_ID = 1337;
+const API_REQUEST_TIMEOUT = 30000;
 
 // Service check constants
 const SERVICE_CHECK_ON = 'on';
@@ -27,7 +28,6 @@ const NOT_RUNNING_RESPONSES = ['ECONNREFUSED', 'ETIMEDOUT'];
 
 // Private backing variables
 let _networkSettings = null;
-let _statusNetworkId = null;
 
 /**
  * Plugin that connects an Embark dApp to the Status app, and allows the dApp
@@ -42,7 +42,7 @@ class EmbarkStatusPlugin {
     this.deviceIp = this.pluginConfig.deviceIp;
     this.logger = this.embark.logger;
     // we want a timeout to occur before issuing the next request, so reduce the timeout specified
-    this.statusApi = new StatusApi({ protocol: DEVICE_PROTOCOL, deviceIp: this.deviceIp, port: DEVICE_PORT, logger: this.logger, timeout: CONNECT_INTERVAL - 1000 });
+    this.statusApi = new StatusApi({ protocol: DEVICE_PROTOCOL, deviceIp: this.deviceIp, port: DEVICE_PORT, logger: this.logger, timeout: API_REQUEST_TIMEOUT });
     this.webServerConfig = {};
     this.blockchainConfig = {};
     this.networkIdDirectory = path.join(process.env.DAPP_PATH, '.embark', 'embark-status');
@@ -64,10 +64,13 @@ class EmbarkStatusPlugin {
     this.events.request('config:cors:add', `${DEVICE_PROTOCOL}://${this.deviceIp}`);
 
     // register service check
-    this._registerEvents();
+    //this._registerServiceCheck();
+
+    this._startContinuousPing();
 
     // kick off network connection, and open dapp after connection
     this.connectStatusToEmbark();
+
   }
 
   /**
@@ -100,48 +103,7 @@ class EmbarkStatusPlugin {
     return _networkSettings;
   }
 
-  /**
-   * Retrieves the stored network ID of a previously added network. The network
-   * ID is stored in the dApp's temporary storage in the filesystem.
-   *  
-   * @returns {String} The status network ID used previously. Returns {null} 
-   * if network ID doesn't exist
-   */
-  get statusNetworkId() {
-    if (!_statusNetworkId) {
-      const { hash } = this.networkSettings;
-      try {
-        const buffer = fs.readFileSync(`${this.networkIdPath}_${hash}`);
-        _statusNetworkId = buffer ? buffer.toString() : null;
-      }
-      catch (_err) {
-        _statusNetworkId = null;
-      }
-    }
-    return _statusNetworkId;
-  }
-
-  /**
-   * Stores the network ID of the Status network in the temporary directory of the
-   * dApp in the filesystem.
-   * 
-   * @param {String} networkId ID of the Status network
-   * 
-   * @returns {void}
-   */
-  set statusNetworkId(networkId) {
-    const { hash } = this.networkSettings;
-    fs.mkdir(this.networkIdDirectory, _err => {
-      fs.writeFile(`${this.networkIdPath}_${hash}`, networkId, err => {
-        if (err) {
-          this.logger.error(`Error storing networkId in embark: ${err.message}`);
-        }
-        _statusNetworkId = networkId;
-      });
-    });
-  }
-
-  static _isNotRunningError(code){
+  static _isNotRunningError(code) {
     return NOT_RUNNING_RESPONSES.some(responseCode => responseCode === code);
   }
 
@@ -160,13 +122,22 @@ class EmbarkStatusPlugin {
       this.events.request('blockchain:networkId', networkId => {
         this.networkId = networkId;
         const connectIntervalId = setInterval(() => {
-          this._connectStatus(err => {
+          if (this.blockchainConfig === {} || this.webServerConfig === {}) return; // embark hasn't loaded configs yet
+          this._connectStatus((err, result) => {
             if (err) return this.logger.error(err);
 
             // now that we're connected, stop trying to re-connect
             clearInterval(connectIntervalId);
 
             // attempt to open the dApp once
+            // status will restart once the network is switched, wait for reconnect
+            if (result && result.alreadyConnected !== true) {
+              return this.events.once('embark-status:connect', () => {
+                this.openDapp(err => {
+                  if (err) this.logger.error(err);
+                });
+              });
+            }
             this.openDapp(err => {
               if (err) this.logger.error(err);
             });
@@ -208,6 +179,16 @@ class EmbarkStatusPlugin {
     });
   }
 
+  _startContinuousPing() {
+    setInterval(() => {
+      this.statusApi.ping((err, isOnline) => {
+        if (!err && isOnline) {
+          this.events.emit('embark-status:connect');
+        }
+      });
+    }, 2000);
+  }
+
   /**
    * Connects the Status app to an Embark network (node running in this dApp).
    * If the network doesn't exist, it is added. Network (node) settings are 
@@ -224,13 +205,35 @@ class EmbarkStatusPlugin {
    * @returns {void}
    */
   _connectStatus(cb) {
-    // if we have previously added a network, try to retrieve the stored networkid
-    // and connect to that network
-    if (this.statusNetworkId) {
-      return this._connectToStatusNetwork(this.statusNetworkId, cb);
-    }
-    // otherwise, add a new network and connect to that network
-    return this._addAndConnectStatusNetwork(cb);
+    this.statusApi.ping((err, isOnline) => {
+      if (err || !isOnline) return cb('Status app is not responding. Is it open? Are you logged in?');
+
+      this.events.emit('embark-status:connect');
+
+      this.statusApi.networks((err, networkList) => {
+        if (err || !networkList) return cb(`Error getting list of networks from the Status app: ${err}`);
+        const networks = networkList.networks;
+        const { nodeUrl, networkId, networkName } = this.networkSettings;
+        const statusNetworkId = Object.keys(networks).find(networkKey => {
+          const network = networks[networkKey];
+          return network.config &&
+            network.config.UpstreamConfig &&
+            network.config.UpstreamConfig.URL === nodeUrl &&
+            network.config.NetworkId === networkId &&
+            network.name === networkName;
+        });
+        if (statusNetworkId) {
+          this.statusNetworkId = statusNetworkId;
+          if (networks[statusNetworkId]['active?'] === true) return cb(null, { alreadyConnected: true }); // already connected to this network, do nothing
+          return this._connectToStatusNetwork(this.statusNetworkId, cb); // connect to the already added network
+        }
+        // otherwise, add a new network and connect to that network
+        this._addAndConnectStatusNetwork(cb);
+      });
+
+    });
+
+
   }
 
   /**
@@ -254,7 +257,7 @@ class EmbarkStatusPlugin {
     this.statusApi.connect(statusNetworkId, (err, result) => {
       if (err) {
         if (EmbarkStatusPlugin._isNotRunningError(err.code)) {
-          return cb(`Failed to connect to the Status network. Is the Status app open?`);
+          return cb('Failed to connect to the Status network. Is the Status app open? Are you logged in?');
         }
         return cb(`Error while connecting to Status network ${nodeUrl} in the Status app: ${err.message}.`);
       }
@@ -285,7 +288,7 @@ class EmbarkStatusPlugin {
     return this.statusApi.addNetwork(networkName, nodeUrl, chainName, this.networkId, (err, result) => {
       if (err) {
         if (EmbarkStatusPlugin._isNotRunningError(err.code)) {
-          return cb('Failed to add a network to the Status app. Is the Status app open?');
+          return cb('Failed to add a network to the Status app. Is the Status app open? Are you logged in?');
         }
         return cb(`Error while adding network ${nodeUrl} (name: ${chainName}, networkId: ${networkId}) to the Status App: ${err.message}.`);
       }
@@ -308,12 +311,21 @@ class EmbarkStatusPlugin {
    * 
    * @returns {void}
    */
-  _registerEvents() {
-    this.embark.registerServiceCheck('Status', (cb) => {
-      this.statusApi.ping((_err, isOnline) => {
+  _registerServiceCheck() {
+    const serviceCheckQueue = queue((task, callback) => {
+      this.statusApi.ping((err, isOnline) => {
+        if (!err && isOnline) this.events.emit('embark-status:connect');
         const stateName = (isOnline ? SERVICE_CHECK_ON : SERVICE_CHECK_OFF);
-        cb({ name: `Status.im (${this.deviceIp})`, status: stateName });
+        task.cb({ name: `Status.im (${this.deviceIp})`, status: stateName });
       });
+      callback();
+    }, 1);
+    // this.embark.registerServiceCheck('Status', (cb) => {
+    //   serviceCheckQueue.push({ cb });
+    // });
+    this.embark.registerServiceCheck('Status', (cb) => {
+      serviceCheckQueue.push({ cb });
+
     });
 
     this.embark.events.on('check:backOnline:Status', () => {

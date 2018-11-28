@@ -29,6 +29,8 @@ const NOT_RUNNING_RESPONSES = ['ECONNREFUSED', 'ETIMEDOUT'];
 // Private backing variables
 let _networkSettings = null;
 
+const MACHINE_IP = Ip.address();
+
 /**
  * Plugin that connects an Embark dApp to the Status app, and allows the dApp
  * to be run in the Status browser.
@@ -52,6 +54,7 @@ class EmbarkStatusPlugin {
     this.events.on('config:load:webserver', webServerConfig => {
       this.webServerConfig = webServerConfig;
       _networkSettings = null; // reset backing var to recompute hash
+      this.events.request('config:cors:add', buildUrl(DEVICE_PROTOCOL, MACHINE_IP, this.webServerConfig.port, 'http'));
     });
 
     // gets hydrated blockchain config from embark
@@ -61,7 +64,7 @@ class EmbarkStatusPlugin {
     });
 
     // adds cors to blockchain and storage clients
-    this.events.request('config:cors:add', `${DEVICE_PROTOCOL}://${this.deviceIp}`);
+    this.events.request('config:cors:add', buildUrl(DEVICE_PROTOCOL, this.deviceIp, false, 'http'));
 
     // register service check
     //this._registerServiceCheck();
@@ -91,7 +94,7 @@ class EmbarkStatusPlugin {
       const nodePort = this.blockchainConfig.proxy ? this.blockchainConfig.rpcPort + 10 : this.blockchainConfig.rpcPort;
       let blockchainHost = this.blockchainConfig.rpcHost;
       if (LOCAL_HOSTS.some(host => host === blockchainHost)) {
-        blockchainHost = Ip.address();
+        blockchainHost = MACHINE_IP;
       }
       const nodeUrl = buildUrl('http', blockchainHost, nodePort);
       const networkName = `${NETWORK_NAME} (${this.pluginConfig.name})`;
@@ -162,7 +165,7 @@ class EmbarkStatusPlugin {
   openDapp(cb) {
     let dappHost = this.webServerConfig.host;
     if (LOCAL_HOSTS.some(host => host === dappHost)) {
-      dappHost = Ip.address();
+      dappHost = MACHINE_IP;
     }
     const dappUrl = this.pluginConfig.dappUrl || buildUrl('http', dappHost, this.webServerConfig.port) + '/';
 

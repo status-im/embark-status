@@ -38,12 +38,12 @@ dappConnection: [
   }
 ]
 ```
-Then run the following commands:
+Then run the following commands, of course replacing `your-machine-ip` with your machine's IP:
 ```
-ipfs config --json Addresses.API "\"/ip4/0.0.0.0/tcp/5001\""
-ipfs config --json Addresses.Gateway "\"/ip4/0.0.0.0/tcp/5001\""
+ipfs config --json Addresses.API "\"/ip4/your-machine-ip/tcp/5001\""
+ipfs config --json Addresses.Gateway "\"/ip4/your-machine-ip/tcp/5001\""
 ```
-> NOTE: These commands change your local IPFS config so that IPFS can be used on any IP. In this case, we want the IPFS API and gateway to the be accessible from our machine's IP.
+> NOTE: In this case, we want the IPFS API and gateway to the be accessible from our machine's IP.
 
 If you'd like to revert to the default settings, run the following two commands:
 ```

@@ -7,7 +7,7 @@
  *  The URL host, required.
  * @param {string} port
  *  The URL port, default to empty string.
- * @param {string} [type]
+ * @param {any} [type]
  *  Type of connection - used when protocol is false or not specified. Valid options
  *  are 'ws' and 'http'.
  * @returns {string} the constructued URL, with defaults

@@ -57,6 +57,12 @@ If you'd like to revert to the default settings, run the following two commands:
 ipfs config --json Addresses.API "\"/ip4/127.0.0.1/tcp/5001\""
 ipfs config --json Addresses.Gateway "\"/ip4/127.0.0.1/tcp/5001\""
 ```
+#### Status.im app
+Please make sure the Status app has development mode enabled. To enable development mode: 
+1. Open the app.
+2. Go to Profile (bottom right tab).
+3. Scroll to the bottom and tap the "Advanced" button.
+4. Enable the "Development mode" toggle
 
 ### Hosted dApp
 If your dApp is hosted (ie on decentralised storage like IPFS or Swarm), the plugin option `dappUrl` can be specified to override the dApp URL that is opened in the Status dApp browser after `embark-status` is connected to the Status app.
@@ -97,4 +103,4 @@ Embark up to `alpha.2` is not updating IPFS CORS correctly, due to the need for 
   "ws://localhost:8546"
 ]
 ```
-
+The fixes for the above are sitting in the `master` branch of embark. As an alternative to modifying the IPFS config manually, you could checkout the `master` branch from embark and run `bin/embark run` on your dapp.

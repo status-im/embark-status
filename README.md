@@ -48,14 +48,14 @@ dappConnection: [
 Then run the following commands, of course replacing `your-machine-ip` with your machine's IP:
 ```
 ipfs config --json Addresses.API "\"/ip4/your-machine-ip/tcp/5001\""
-ipfs config --json Addresses.Gateway "\"/ip4/your-machine-ip/tcp/5001\""
+ipfs config --json Addresses.Gateway "\"/ip4/your-machine-ip/tcp/8080\""
 ```
 > NOTE: In this case, we want the IPFS API and gateway to the be accessible from our machine's IP.
 
 If you'd like to revert to the default settings, run the following two commands:
 ```
 ipfs config --json Addresses.API "\"/ip4/127.0.0.1/tcp/5001\""
-ipfs config --json Addresses.Gateway "\"/ip4/127.0.0.1/tcp/5001\""
+ipfs config --json Addresses.Gateway "\"/ip4/127.0.0.1/tcp/8080\""
 ```
 #### Status.im app
 Please make sure the Status app has development mode enabled. To enable development mode: 

@@ -21,7 +21,7 @@ const DEVICE_PROTOCOL = 'http';
 const DEVICE_PORT = 5561;
 
 // Local machine host constants
-const LOCAL_HOSTS = ['0.0.0.0', 'localhost'];
+const LOCAL_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1'];
 
 // App not running response codes
 const NOT_RUNNING_RESPONSES = ['ECONNREFUSED', 'ETIMEDOUT'];
@@ -54,7 +54,7 @@ class EmbarkStatusPlugin {
     this.events.on('config:load:webserver', webServerConfig => {
       this.webServerConfig = webServerConfig;
       _networkSettings = null; // reset backing var to recompute hash
-      this.events.request('config:cors:add', buildUrl(DEVICE_PROTOCOL, MACHINE_IP, this.webServerConfig.port, 'http'));
+      this.events.request('config:cors:add', buildUrl(DEVICE_PROTOCOL, MACHINE_IP, this.webServerConfig.port));
     });
 
     // gets hydrated blockchain config from embark
@@ -64,10 +64,10 @@ class EmbarkStatusPlugin {
     });
 
     // adds cors to blockchain and storage clients
-    this.events.request('config:cors:add', buildUrl(DEVICE_PROTOCOL, this.deviceIp, false, 'http'));
+    this.events.request('config:cors:add', buildUrl(DEVICE_PROTOCOL, this.deviceIp, false));
 
     // register service check
-    //this._registerServiceCheck();
+    this._registerServiceCheck();
 
     this._startContinuousPing();
 
@@ -323,9 +323,6 @@ class EmbarkStatusPlugin {
       });
       callback();
     }, 1);
-    // this.embark.registerServiceCheck('Status', (cb) => {
-    //   serviceCheckQueue.push({ cb });
-    // });
     this.embark.registerServiceCheck('Status', (cb) => {
       serviceCheckQueue.push({ cb });
 

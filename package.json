@@ -1,6 +1,6 @@
 {
-  "name": "embark-status",
-  "version": "0.3.0",
+  "name": "embark-status-plugin",
+  "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "files": [
